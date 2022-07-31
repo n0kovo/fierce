@@ -1,6 +1,8 @@
 # Fierce
 
 [![Build Status](https://travis-ci.org/mschwager/fierce.svg?branch=master)](https://travis-ci.org/mschwager/fierce)
+[![Coverage Status](https://coveralls.io/repos/github/mschwager/fierce/badge.svg?branch=master)](https://coveralls.io/github/mschwager/fierce?branch=master)
+[![Dlint Status](https://github.com/mschwager/fierce/workflows/Dlint/badge.svg)](https://github.com/dlint-py/dlint-action)
 [![Python Versions](https://img.shields.io/pypi/pyversions/fierce.svg)](https://img.shields.io/pypi/pyversions/fierce.svg)
 [![PyPI Version](https://img.shields.io/pypi/v/fierce.svg)](https://img.shields.io/pypi/v/fierce.svg)
 
@@ -40,7 +42,7 @@ The original description was very apt, so I'll include it here:
 # Installing
 
 ```
-$ pip3 install fierce
+$ python -m pip install fierce
 $ fierce -h
 ```
 
@@ -49,9 +51,11 @@ OR
 ```
 $ git clone https://github.com/mschwager/fierce.git
 $ cd fierce
-$ pip3 install -r requirements.txt
-$ python3 fierce/fierce.py -h
+$ python -m pip install -r requirements.txt
+$ python fierce/fierce.py -h
 ```
+
+*Requires Python 3.*
 
 # Using
 
@@ -115,6 +119,30 @@ Check out `--help` for further information:
 $ fierce --help
 ```
 
-# TODO
+# Developing
 
-* Provide multiprocessing capabilities
+First, install development packages:
+
+```
+$ python -m pip install -r requirements.txt
+$ python -m pip install -r requirements-dev.txt
+$ python -m pip install -e .
+```
+
+## Testing
+
+```
+$ pytest
+```
+
+## Linting
+
+```
+$ flake8
+```
+
+## Coverage
+
+```
+$ pytest --cov
+```

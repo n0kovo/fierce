@@ -3,6 +3,27 @@ All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 This project adheres to [CHANGELOG](http://keepachangelog.com/).
 
+## [Unreleased]
+
+## [1.4.0] - 2019-11-07
+### Added
+- Official Python 3.8 support
+- The --tcp flag to use TCP instead of UDP DNS queries
+
+### Removed
+- Official Python 3.4 support, it's EOL
+
+## [1.3.0] - 2019-05-15
+### Changed
+- Print out all A records for wildcard, not just first one
+
+### Added
+- Filter out subdomains with an A record matching a wildcard A record
+- Official Python 3.7 support
+
+### Fixed
+- Prevent out of bounds error when expanding IPs near 0.0.0.0 or 255.255.255.255
+
 ## [1.2.2] - 2018-04-24
 ### Changed
 - Python 3 is now a requirement when installing via setup.py (including pip)

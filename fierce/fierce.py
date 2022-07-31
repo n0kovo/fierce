@@ -27,16 +27,30 @@ def fatal(msg, return_code=-1):
     exit(return_code)
 
 
-def print_subdomain_result(url, ip, http_connection_headers=None, nearby=None, stream=sys.stdout):
-    print("Found: {} ({})".format(url, ip), file=stream)
+def print_subdomain_result(url, ip, http_connection_headers=None, nearby=None, stream=sys.stdout, printOutput=True):
+    if not printOutput:
+        output = {}
+        output["subdomains"] = {}
+        output["subdomains"]["http"] = ""
+        output["subdomains"]["nearby"] = ""
+    if printOutput:
+        print("Found: {} ({})".format(url, ip), file=stream)
+    else:
+        output["subdomains"][url] = ip
 
     if http_connection_headers:
-        print("HTTP connected:", file=stream)
-        pprint.pprint(http_connection_headers, stream=stream)
+        if printOutput:
+            print("HTTP connected:", file=stream)
+            pprint.pprint(http_connection_headers, stream=stream)
+        else:
+            output["subdomains"]["http"]["url"] = http_connection_headers
 
     if nearby:
-        print("Nearby:", file=stream)
-        pprint.pprint(nearby, stream=stream)
+        if printOutput:
+            print("Nearby:", file=stream)
+            pprint.pprint(nearby, stream=stream)
+        else:
+            output["subdomains"]["nearby"] = nearby
 
 
 def unvisited_closure():
@@ -108,9 +122,9 @@ def concatenate_subdomains(domain, subdomains):
     return result
 
 
-def query(resolver, domain, record_type='A'):
+def query(resolver, domain, record_type='A', tcp=False):
     try:
-        resp = resolver.query(domain, record_type, raise_on_no_answer=False)
+        resp = resolver.query(domain, record_type, raise_on_no_answer=False, tcp=tcp)
         if resp.response.answer:
             return resp
 
@@ -124,23 +138,23 @@ def query(resolver, domain, record_type='A'):
                 for rdata in additionals.items
             ]
             resolver.nameservers = ns
-            return query(resolver, domain, record_type)
+            return query(resolver, domain, record_type, tcp=tcp)
 
         return None
     except (dns.resolver.NXDOMAIN, dns.resolver.NoNameservers, dns.exception.Timeout):
         return None
 
 
-def reverse_query(resolver, ip):
-    return query(resolver, dns.reversename.from_address(ip), record_type='PTR')
+def reverse_query(resolver, ip, tcp=False):
+    return query(resolver, dns.reversename.from_address(ip), record_type='PTR', tcp=tcp)
 
 
-def recursive_query(resolver, domain, record_type='NS'):
+def recursive_query(resolver, domain, record_type='NS', tcp=False):
     query_domain = str(domain)
     query_response = None
     try:
         while query_response is None:
-            query_response = query(resolver, query_domain, record_type)
+            query_response = query(resolver, query_domain, record_type, tcp=tcp)
             query_domain = query_domain.split('.', 1)[1]
     except IndexError:
         return None
@@ -168,12 +182,13 @@ def default_expander(ip):
 
 
 def traverse_expander(ip, n=5):
-    class_c = get_class_c_network(ip)
+    ip = int(ip)
+    class_c_floor = ip - (ip % 256)
+    class_c_ceiling = class_c_floor + 255
 
-    result = [ipaddress.IPv4Address(ip + i) for i in range(-n, n + 1)]
-    result = [i for i in result if i in class_c]
-
-    return result
+    ip_min = max(ip - n, class_c_floor)
+    ip_max = min(ip + n, class_c_ceiling)
+    return [ipaddress.IPv4Address(i) for i in range(ip_min, ip_max + 1)]
 
 
 def wide_expander(ip):
@@ -280,6 +295,10 @@ def update_resolver_nameservers(resolver, nameservers, nameserver_filename):
 
 
 def fierce(**kwargs):
+    printOutput = kwargs.get("printOutput", True)
+    if not printOutput:
+        output = {}
+
     resolver = dns.resolver.Resolver()
 
     resolver = update_resolver_nameservers(
@@ -294,52 +313,82 @@ def fierce(**kwargs):
             resolver,
             range_ips,
         )
-        if nearby:
+        if nearby and printOutput:
             print("Nearby:")
             pprint.pprint(nearby)
+        else:
+            output["nearby"] = nearby
 
     if not kwargs.get("domain"):
-        return
+        if not printOutput:
+            return
+        else:
+            return output
 
     domain = dns.name.from_text(kwargs['domain'])
     if not domain.is_absolute():
         domain = domain.concatenate(dns.name.root)
 
-    ns = recursive_query(resolver, domain, 'NS')
+    ns = recursive_query(resolver, domain, 'NS', tcp=kwargs["tcp"])
 
     if ns:
         domain_name_servers = [n.to_text() for n in ns]
     else:
         domain_name_servers = []
 
-    print("NS: {}".format(" ".join(domain_name_servers) if ns else "failure"))
+    if printOutput:
+        print("NS: {}".format(" ".join(domain_name_servers) if ns else "failure"))
+    else:
+        output["NS"] = " ".join(domain_name_servers) if ns else "failure"
 
-    soa = recursive_query(resolver, domain, record_type='SOA')
+    soa = recursive_query(resolver, domain, record_type='SOA', tcp=kwargs["tcp"])
     if soa:
         soa_mname = soa[0].mname
-        master = query(resolver, soa_mname, record_type='A')
+        master = query(resolver, soa_mname, record_type='A', tcp=kwargs["tcp"])
         master_address = master[0].address
-        print("SOA: {} ({})".format(soa_mname, master_address))
+        if printOutput:
+            print("SOA: {} ({})".format(soa_mname, master_address))
+        else:
+            output["SOA"] = "{} ({})".format(soa_mname, master_address)
     else:
-        print("SOA: failure")
-        fatal("Failed to lookup NS/SOA, Domain does not exist")
+        if printOutput:
+            print("SOA: failure")
+            fatal("Failed to lookup NS/SOA, Domain does not exist")
+        else:
+            output["SOA"] = "Failed to lookup NS/SOA, Domain does not exist"
+            return output
 
     zone = zone_transfer(master_address, domain)
-    print("Zone: {}".format("success" if zone else "failure"))
+    if printOutput:
+        print("Zone: {}".format("success" if zone else "failure"))
+    elif not zone:
+        output["zone"] = "failure"
     if zone:
-        pprint.pprint({k: v.to_text(k) for k, v in zone.items()})
-        return
+        if printOutput:
+            pprint.pprint({k: v.to_text(k) for k, v in zone.items()})
+            return
+        else:
+            output["zone"] = {}
+            for k, v in zone.items():
+                key = k.to_unicode()
+                output["zone"][key] = {}
+                output["zone"][key] = v.to_text(k).split('\n')
+            return output
 
-    random_subdomain = str(random.randint(1e10, 1e11))
+    random_subdomain = str(random.randint(1e10, 1e11))  # noqa DUO102, non-cryptographic random use
     random_domain = concatenate_subdomains(domain, [random_subdomain])
+    wildcard = query(resolver, random_domain, record_type='A', tcp=kwargs["tcp"])
+    wildcard_ips = set(rr.address for rr in wildcard.rrset) if wildcard else set()
     wildcard = query(resolver, random_domain, record_type='A')
-    print("Wildcard: {}".format(wildcard[0].address if wildcard else "failure"))
+    if printOutput:
+        print("Wildcard: {}".format(', '.join(wildcard_ips) if wildcard_ips else "failure"))
+    else:
+        output["Wildcard"] = wildcard_ips if wildcard else "failure"
 
     subdomains = get_subdomains(
         kwargs["subdomains"],
         kwargs["subdomain_file"]
     )
-
     filter_func = None
     if kwargs.get("search"):
         filter_func = functools.partial(search_filter, kwargs["search"])
@@ -351,15 +400,18 @@ def fierce(**kwargs):
         expander_func = functools.partial(traverse_expander, n=kwargs["traverse"])
 
     unvisited = unvisited_closure()
-
     for subdomain in subdomains:
         url = concatenate_subdomains(domain, [subdomain])
-        record = query(resolver, url, record_type='A')
+        record = query(resolver, url, record_type='A', tcp=kwargs["tcp"])
 
         if record is None or record.rrset is None:
             continue
 
-        ip = ipaddress.IPv4Address(record[0].address)
+        ips = [rr.address for rr in record.rrset]
+        if wildcard_ips == set(ips):
+            continue
+
+        ip = ipaddress.IPv4Address(ips[0])
 
         http_connection_headers = None
         if kwargs.get('connect') and not ip.is_private:
@@ -374,15 +426,22 @@ def fierce(**kwargs):
             filter_func=filter_func
         )
 
+        # TODO: Add this to lib
         print_subdomain_result(
             url,
             ip,
             http_connection_headers=http_connection_headers,
             nearby=nearby
         )
+        if "subdomains" not in output.keys():
+            output["subdomains"] = {}
+        if not printOutput:
+            output["subdomains"][url.to_text()] = record.response.answer[0].to_text()
 
         if kwargs.get("delay"):
             time.sleep(kwargs["delay"])
+    if not printOutput:
+        return output
 
 
 def parse_args(args):
@@ -456,6 +515,11 @@ def parse_args(args):
         '--dns-file',
         action='store',
         help='use dns servers specified in this file for reverse lookups (one per line)'
+    )
+    p.add_argument(
+        '--tcp',
+        action='store_true',
+        help='use TCP instead of UDP'
     )
 
     args = p.parse_args(args)

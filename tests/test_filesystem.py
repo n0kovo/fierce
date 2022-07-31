@@ -34,7 +34,7 @@ class TestFilesystem(fake_filesystem_unittest.TestCase):
             nameserver_filename
         )
 
-        self.assertEqual(expected, result.nameservers)
+        assert expected == result.nameservers
 
     def test_update_resolver_nameservers_single_nameserver_no_file(self):
         nameserver_filename = None
@@ -49,7 +49,7 @@ class TestFilesystem(fake_filesystem_unittest.TestCase):
         )
 
         expected = nameservers
-        self.assertEqual(expected, result.nameservers)
+        assert expected == result.nameservers
 
     def test_update_resolver_nameservers_multiple_nameservers_no_file(self):
         nameserver_filename = None
@@ -64,7 +64,7 @@ class TestFilesystem(fake_filesystem_unittest.TestCase):
         )
 
         expected = nameservers
-        self.assertEqual(expected, result.nameservers)
+        assert expected == result.nameservers
 
     def test_update_resolver_nameservers_no_nameserver_use_file(self):
         nameserver_filename = os.path.join("directory", "nameservers")
@@ -75,7 +75,7 @@ class TestFilesystem(fake_filesystem_unittest.TestCase):
         nameserver3
         """.strip())
 
-        self.fs.CreateFile(
+        self.fs.create_file(
             nameserver_filename,
             contents=contents
         )
@@ -89,7 +89,7 @@ class TestFilesystem(fake_filesystem_unittest.TestCase):
         )
 
         expected = contents.split()
-        self.assertEqual(expected, result.nameservers)
+        assert expected == result.nameservers
 
     def test_update_resolver_nameservers_prefer_nameservers_over_file(self):
         nameserver_filename = os.path.join("directory", "nameservers")
@@ -100,7 +100,7 @@ class TestFilesystem(fake_filesystem_unittest.TestCase):
         nameserver3
         """.strip())
 
-        self.fs.CreateFile(
+        self.fs.create_file(
             nameserver_filename,
             contents=contents
         )
@@ -114,7 +114,7 @@ class TestFilesystem(fake_filesystem_unittest.TestCase):
         )
 
         expected = nameservers
-        self.assertEqual(expected, result.nameservers)
+        assert expected == result.nameservers
 
     def test_get_subdomains_empty_no_file(self):
         subdomain_filename = None
@@ -126,7 +126,7 @@ class TestFilesystem(fake_filesystem_unittest.TestCase):
         )
 
         expected = subdomains
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_get_subdomains_single_subdomain_no_file(self):
         subdomain_filename = None
@@ -138,7 +138,7 @@ class TestFilesystem(fake_filesystem_unittest.TestCase):
         )
 
         expected = subdomains
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_get_subdomains_multiple_subdomains_no_file(self):
         subdomain_filename = None
@@ -150,7 +150,7 @@ class TestFilesystem(fake_filesystem_unittest.TestCase):
         )
 
         expected = subdomains
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_get_subdomains_no_subdomains_use_file(self):
         subdomain_filename = os.path.join("directory", "subdomains")
@@ -161,7 +161,7 @@ class TestFilesystem(fake_filesystem_unittest.TestCase):
         sd3.domain.com
         """.strip())
 
-        self.fs.CreateFile(
+        self.fs.create_file(
             subdomain_filename,
             contents=contents
         )
@@ -172,7 +172,7 @@ class TestFilesystem(fake_filesystem_unittest.TestCase):
         )
 
         expected = contents.split()
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_get_subdomains_prefer_subdomains_over_file(self):
         subdomain_filename = os.path.join("directory", "subdomains")
@@ -183,7 +183,7 @@ class TestFilesystem(fake_filesystem_unittest.TestCase):
         sd3.domain.com
         """.strip())
 
-        self.fs.CreateFile(
+        self.fs.create_file(
             subdomain_filename,
             contents=contents
         )
@@ -194,7 +194,7 @@ class TestFilesystem(fake_filesystem_unittest.TestCase):
         )
 
         expected = subdomains
-        self.assertEqual(expected, result)
+        assert expected == result
 
 
 if __name__ == "__main__":
